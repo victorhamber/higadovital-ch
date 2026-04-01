@@ -154,36 +154,41 @@ document.addEventListener('mouseleave', (e) => {
 (function(window, location) {
     let historyPushed = false;
 
-    // The key for Android: only push history after some user interaction
     const pushHistory = () => {
-        if (historyPushed) return;
+        if (historyPushed || location.hash.includes('back')) return;
         historyPushed = true;
 
-        // Step 1: Push the "back" hash
-        history.pushState(null, document.title, location.pathname + "#!/back");
-        // Step 2: Push the current page state on top
+        // Step 1: Replace current state with the 'back' trap (reduces total history events triggered)
+        const backHash = "#!/back-" + Math.floor(Math.random() * 100000);
+        history.replaceState(null, document.title, location.pathname + backHash);
+        
+        // Step 2: Push the pristine URL on top (the Trajettu will only see 1 event here now instead of 2)
         history.pushState(null, document.title, location.pathname);
-        console.log("Back-Redirect: History primed after interaction");
+        
+        console.log("Back-Redirect: Trap primed via valid user interaction");
     };
 
-    // Listen for common user interactions (scroll, touch, click)
-    ['touchstart', 'mousedown', 'scroll'].forEach(evt => {
-        window.addEventListener(evt, pushHistory, { once: true, passive: true });
+    // VITAL FOR ANDROID: Only trigger history APIs after a *real* user interaction.
+    // If you trigger it automatically via setTimeout on load, Android Chrome destroys the trap.
+    const interactionEvents = ['touchstart', 'mousedown', 'scroll'];
+    const interactHandler = () => {
+        interactionEvents.forEach(evt => window.removeEventListener(evt, interactHandler));
+        pushHistory();
+    };
+
+    interactionEvents.forEach(evt => {
+        window.addEventListener(evt, interactHandler, { passive: true });
     });
 
-    // Also try a delayed push as fallback
-    window.addEventListener('load', () => {
-        setTimeout(pushHistory, 2000);
-    });
-
-    // Listen for the popstate (back button)
-    window.addEventListener("popstate", function() {
-        if(location.hash === "#!/back") {
-            // Clear the hash and trigger the visual popup
+    window.addEventListener("popstate", function(e) {
+        if (location.hash.includes('back')) {
+            // Clear hash
             history.replaceState(null, document.title, location.pathname);
-            setTimeout(function(){
-                triggerExitPopup();
-            }, 0);
+            // Trigger visual popup
+            setTimeout(triggerExitPopup, 0);
+            
+            // Re-arm the trap just in case they decide to press back again later after dismissing
+            historyPushed = false;
         }
     }, false);
 }(window, location));
