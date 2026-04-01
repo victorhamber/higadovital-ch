@@ -1,0 +1,5 @@
+# Robots.txt - Hígado Vital
+User-agent: *
+Allow: /
+
+# Sitemap: https://higadovital.readlyme.com/sitemap.xml (Opcional no momento)
