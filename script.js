@@ -102,15 +102,14 @@ setTimeout(() => {
     }, Math.random() * 15000 + 15000); // Trigger every 15-30 seconds
 }, 8000); // first shows after 8 seconds
 
-// --- EXIT INTENT / BACK REDIRECT ---
+// --- EXIT INTENT (desktop: cursor sai pelo topo) ---
 const exitModal = document.getElementById('exitModal');
 let popupTriggered = false;
 
 function triggerExitPopup() {
-    if (popupTriggered) return;
+    if (popupTriggered || !exitModal) return;
     popupTriggered = true;
-    
-    // Show modal
+
     exitModal.classList.add('active');
 
     // Fire confetti
@@ -140,55 +139,11 @@ function triggerExitPopup() {
 }
 
 function closeModal() {
-    exitModal.classList.remove('active');
+    if (exitModal) exitModal.classList.remove('active');
 }
 
-// 1. Mouse Leave Intent (Desktop)
 document.addEventListener('mouseleave', (e) => {
     if (e.clientY <= 0) {
         triggerExitPopup();
     }
 });
-
-// 2. Back Redirect Logic (Maximum Compatibility with Android Chrome)
-(function(window, location) {
-    let historyPushed = false;
-
-    const pushHistory = () => {
-        if (historyPushed || location.hash.includes('back')) return;
-        historyPushed = true;
-
-        // Step 1: Replace current state with the 'back' trap (reduces total history events triggered)
-        const backHash = "#!/back-" + Math.floor(Math.random() * 100000);
-        history.replaceState(null, document.title, location.pathname + backHash);
-        
-        // Step 2: Push the pristine URL on top (the Trajettu will only see 1 event here now instead of 2)
-        history.pushState(null, document.title, location.pathname);
-        
-        console.log("Back-Redirect: Trap primed via valid user interaction");
-    };
-
-    // VITAL FOR ANDROID: Only trigger history APIs after a *real* user interaction.
-    // If you trigger it automatically via setTimeout on load, Android Chrome destroys the trap.
-    const interactionEvents = ['touchstart', 'mousedown', 'scroll'];
-    const interactHandler = () => {
-        interactionEvents.forEach(evt => window.removeEventListener(evt, interactHandler));
-        pushHistory();
-    };
-
-    interactionEvents.forEach(evt => {
-        window.addEventListener(evt, interactHandler, { passive: true });
-    });
-
-    window.addEventListener("popstate", function(e) {
-        if (location.hash.includes('back')) {
-            // Clear hash
-            history.replaceState(null, document.title, location.pathname);
-            // Trigger visual popup
-            setTimeout(triggerExitPopup, 0);
-            
-            // Re-arm the trap just in case they decide to press back again later after dismissing
-            historyPushed = false;
-        }
-    }, false);
-}(window, location));
